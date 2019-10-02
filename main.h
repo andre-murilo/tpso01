@@ -153,7 +153,7 @@ public:
 
     void AddPrinter(CPrinter printer);
     void RemoveRequest(CPrintRequest* request);
- 
+    CPrintRequest * GetNextRequest();
 
 
     bool ParseFile(const char* path);

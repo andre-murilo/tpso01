@@ -169,6 +169,7 @@ void CPrinter::Print(CPrintRequest* request)
 {
     this->m_current = request;
     this->m_printing = true;
+    this->m_current->m_printing = true;
 
     printf("Imprimindo %u paginas...\n", request->m_pages);
 }
@@ -198,10 +199,12 @@ void CPrinter::update(int delta)
             else
             {
                 m_printing = false;
-                m_current->m_printing = false;
                 m_current->m_printed = true;
                 this->m_printed = true;
                 this->m_cooldown = true;
+
+                // impressao completa
+                printf("Impressao completa: %d:%d:%d\n\n", g_Time.hour, g_Time.minute, g_Time.second);
             }
         }
     }
@@ -282,6 +285,18 @@ Proprietary* Engine::GetProprietaryByName(char *name)
 
     return nullptr;
 }
+
+CPrintRequest * Engine::GetNextRequest()
+{
+    for(int i = 0; this->m_requests.size(); i++)
+    {
+        if(!m_requests[i].m_printing)
+            return &m_requests[i];
+    }
+
+    return NULL;
+}
+
 
 void Engine::AddRequest(CPrintRequest request)
 {
@@ -428,7 +443,7 @@ void Engine::Update(int delta)
         {
             // opa, esta na hora de inserir esse cara!
             this->m_requests.push_back(m_requests_future[i]);
-
+            printf("Entrou um pedido: %d:%d:%d\n", chegada.hour, chegada.minute, chegada.second);
             this->Sort();
             
             m_requests_future.erase(m_requests_future.begin() + i);
@@ -438,16 +453,22 @@ void Engine::Update(int delta)
     // atualizar impressoras
     for(int i = 0; i < m_printers.size(); i++)
     {
+        // verifica se ja imprimiu
         if(m_printers[i].m_printed)
         {
             CPrintRequest *req = m_printers[i].m_current;
             RemoveRequest(req);
             m_printers[i].m_printed = false;
+            m_printers[i].m_cooldown = true;
+            m_printers[i].m_current = nullptr;
         }
 
-        if(!m_printers[i].IsPrinting())
+        // verifica se a impressora esta disponivel
+        if(!m_printers[i].IsPrinting() && !m_printers[i].m_cooldown)
         {
-            m_printers[i].Print(&m_requests[0]);
+            CPrintRequest *toPrint = GetNextRequest();
+            if(toPrint != NULL)
+                m_printers[i].Print(toPrint);
         }
 
         m_printers[i].update(delta);
